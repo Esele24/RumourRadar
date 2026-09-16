@@ -1,0 +1,71 @@
+import { ClaimCategory, ExtractedClaim } from '@/types';
+
+/**
+ * Extracts normalized factual claims from messy social messages or URLs.
+ * Categorizes and isolates the core testable assertion.
+ */
+export async function extractClaim(rawInput: string): Promise<ExtractedClaim> {
+  const cleanedInput = rawInput.trim();
+
+  // Heuristic rule-based claim extraction & categorization
+  const lower = cleanedInput.toLowerCase();
+
+  let category: ClaimCategory = 'general';
+  let entity = 'Nigeria';
+
+  if (lower.includes('cbn') || lower.includes('opay') || lower.includes('moniepoint') || lower.includes('bank') || lower.includes('naira') || lower.includes('fintech') || lower.includes('withdraw') || lower.includes('flutterwave')) {
+    category = 'banking_fintech';
+    if (lower.includes('opay')) entity = 'OPay';
+    else if (lower.includes('cbn') || lower.includes('central bank')) entity = 'Central Bank of Nigeria (CBN)';
+    else if (lower.includes('moniepoint')) entity = 'Moniepoint';
+    else entity = 'Banking / Financial System';
+  } else if (lower.includes('inec') || lower.includes('election') || lower.includes('tinubu') || lower.includes('president') || lower.includes('governor') || lower.includes('minister') || lower.includes('vote')) {
+    category = 'elections_politics';
+    if (lower.includes('inec')) entity = 'INEC';
+    else if (lower.includes('tinubu')) entity = 'President Bola Tinubu';
+    else entity = 'Federal Government of Nigeria';
+  } else if (lower.includes('jamb') || lower.includes('waec') || lower.includes('neco') || lower.includes('utme') || lower.includes('admission') || lower.includes('university') || lower.includes('nuc')) {
+    category = 'education_exams';
+    if (lower.includes('jamb') || lower.includes('utme')) entity = 'JAMB';
+    else if (lower.includes('waec')) entity = 'WAEC';
+    else entity = 'Education Authorities';
+  } else if (lower.includes('ncdc') || lower.includes('cholera') || lower.includes('lassa') || lower.includes('outbreak') || lower.includes('health') || lower.includes('vaccine') || lower.includes('hospital') || lower.includes('nafdac')) {
+    category = 'public_health';
+    if (lower.includes('ncdc')) entity = 'NCDC';
+    else if (lower.includes('nafdac')) entity = 'NAFDAC';
+    else entity = 'Federal Ministry of Health / NCDC';
+  } else if (lower.includes('ncc') || lower.includes('mtn') || lower.includes('airtel') || lower.includes('glo') || lower.includes('network') || lower.includes('sim') || lower.includes('nin') || lower.includes('data')) {
+    category = 'telecom_tech';
+    if (lower.includes('ncc')) entity = 'NCC';
+    else if (lower.includes('mtn')) entity = 'MTN Nigeria';
+    else entity = 'Telecom Regulatory Commission';
+  } else if (lower.includes('curfew') || lower.includes('riot') || lower.includes('kidnap') || lower.includes('police') || lower.includes('army') || lower.includes('attack') || lower.includes('gunmen') || lower.includes('alert') || lower.includes('security')) {
+    category = 'security_alerts';
+    if (lower.includes('lagos')) entity = 'Lagos State Security Council';
+    else if (lower.includes('police')) entity = 'Nigeria Police Force';
+    else entity = 'Security & Defence Authorities';
+  }
+
+  // Generate normalized claim statement by stripping clickbait and urgency markers
+  let normalized = cleanedInput
+    .replace(/^(BREAKING|URGENT|ATTENTION|VIRAL|ALERT|SECURITY ALERT|JUST IN):\s*/i, '')
+    .replace(/(share this to 10 groups|forward to everyone|withdraw all your money|do not ignore)\.?/gi, '')
+    .trim();
+
+  // If text is too long, take the primary sentence
+  if (normalized.length > 200) {
+    const firstSentence = normalized.split(/[.\n!?]/)[0];
+    if (firstSentence && firstSentence.length > 20) {
+      normalized = firstSentence.trim();
+    }
+  }
+
+  return {
+    normalizedClaim: normalized,
+    entity,
+    category,
+    location: lower.includes('lagos') ? 'Lagos, Nigeria' : lower.includes('abuja') ? 'Abuja, Nigeria' : 'Nigeria (National)',
+    dateClaimed: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    rawText: rawInput
+  };
+}
